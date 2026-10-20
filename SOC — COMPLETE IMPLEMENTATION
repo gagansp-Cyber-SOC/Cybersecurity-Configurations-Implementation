@@ -1,0 +1,1620 @@
+# 🛡️🧠 WAZUH SIEM / SOC — COMPLETE IMPLEMENTATION & INVESTIGATION PLAYBOOK
+
+---
+
+## 🧠📘 DEFINITION — WAZUH SOC LAB
+
+A practical, from-scratch Wazuh SIEM/SOC implementation covering:
+
+- Installation
+- Endpoint onboarding
+- Log collection
+- Network device monitoring
+- Cloud security monitoring
+- Detection engineering
+- Vulnerability management
+- File Integrity Monitoring (FIM)
+- Security Configuration Assessment (SCA)
+- Malware detection
+- Container monitoring
+- Active Response
+- SOC investigation
+- Troubleshooting
+- Security hardening
+
+### 🎯🔥 FINAL OBJECTIVE
+
+The lab should allow an analyst to:
+
+```text
+Install
+   ↓
+Enroll
+   ↓
+Collect
+   ↓
+Decode
+   ↓
+Detect
+   ↓
+Investigate
+   ↓
+Tune
+   ↓
+Respond
+   ↓
+Validate
+   ↓
+Troubleshoot
+```
+
+---
+
+## 🏗️🧩 PHASE 1 — ARCHITECTURE & DATA FLOW
+
+### ❓🧠 WHY THIS PHASE IS CRITICAL
+
+Understand the complete telemetry path before troubleshooting individual components.
+
+### 📍🔎 WAZUH ARCHITECTURE
+
+```text
+                         ┌──────────────────────┐
+                         │   Wazuh Dashboard    │
+                         │ Investigation / SOC  │
+                         └──────────┬───────────┘
+                                    │
+                         ┌──────────▼───────────┐
+                         │    Wazuh Server      │
+                         │ Manager + Filebeat   │
+                         │ Rules + Decoders     │
+                         └──────────┬───────────┘
+                                    │
+                         ┌──────────▼───────────┐
+                         │    Wazuh Indexer     │
+                         │ Events / Alerts      │
+                         └──────────────────────┘
+
+       ┌─────────────┬─────────────┬─────────────┬──────────────┐
+       │             │             │             │              │
+    Windows       Linux       Firewall/IDS      Cloud       Applications
+     Agent        Agent         Syslog           APIs            Logs
+```
+
+### 🔄📡 DATA FLOW
+
+```text
+DATA SOURCES
+     ↓
+Endpoint / Network / Cloud
+     ↓
+Wazuh Agent / Syslog / API
+     ↓
+Wazuh Manager
+     ↓
+Decoders
+     ↓
+Rules
+     ↓
+Alerts
+     ↓
+Wazuh Indexer
+     ↓
+Wazuh Dashboard
+     ↓
+SOC Analysis
+     ↓
+Incident Response
+     ↓
+Active Response
+```
+
+---
+
+## 🧪🖥️ PHASE 2 — LAB COMPONENTS & PREREQUISITES
+
+### 📋🛠️ RECOMMENDED LAB
+
+| Component | Example |
+|---|---|
+| Wazuh Server | Ubuntu 22.04/24.04 VM |
+| Windows Agent | Windows 10/11 |
+| Linux Agent | Ubuntu Server |
+| Network Source | pfSense / FortiGate / SonicWall |
+| Cloud | AWS / Azure / GCP |
+| Application | Nginx / Custom Application |
+| Container | Docker |
+| Detection | Custom Wazuh Rules |
+
+### 🔐🌐 LAB NETWORK
+
+Keep all systems on a **private lab network** and use static IPs where possible.
+
+---
+
+## 🗺️⚙️ PHASE 3 — INSTALLATION ORDER
+
+### ❓🧠 WHY THIS PHASE IS CRITICAL
+
+Build the platform in dependency order so failures can be isolated quickly.
+
+### 📌📋 REQUIRED ORDER
+
+```text
+Infrastructure
+   ↓
+Wazuh Indexer
+   ↓
+Wazuh Server
+   ↓
+Wazuh Dashboard
+   ↓
+Validate Services
+   ↓
+Windows/Linux Agents
+   ↓
+Log Collection
+   ↓
+Network Devices
+   ↓
+Cloud Sources
+   ↓
+Detection Rules
+   ↓
+Security Controls
+   ↓
+Active Response
+   ↓
+SOC Use Cases
+```
+
+---
+
+## 🛠️🖥️ PHASE 4 — WAZUH SERVER INSTALLATION
+
+### 📍🔎 WHERE TO RUN
+
+**Run all installation commands on the Wazuh Server.**
+
+### 1️⃣ UPDATE UBUNTU
+
+```bash
+sudo apt update
+sudo apt upgrade -y
+sudo hostnamectl set-hostname wazuh-server
+```
+
+### 2️⃣📥 DOWNLOAD INSTALLATION ASSISTANT
+
+```bash
+curl -sO https://packages.wazuh.com/4.14/wazuh-install.sh
+chmod 744 wazuh-install.sh
+```
+
+### 3️⃣⚙️ GENERATE CONFIGURATION
+
+```bash
+sudo ./wazuh-install.sh --generate-config-files
+```
+
+### 4️⃣🗄️ INSTALL WAZUH INDEXER
+
+```bash
+sudo ./wazuh-install.sh --wazuh-indexer wazuh-1
+```
+
+### 5️⃣🛡️ INSTALL WAZUH SERVER
+
+```bash
+sudo ./wazuh-install.sh --wazuh-server wazuh-1
+```
+
+### 6️⃣🖥️ INSTALL DASHBOARD
+
+```bash
+sudo ./wazuh-install.sh --wazuh-dashboard dashboard
+```
+
+### 7️⃣✅ VALIDATE SERVICES
+
+```bash
+sudo systemctl status wazuh-indexer
+sudo systemctl status wazuh-manager
+sudo systemctl status wazuh-dashboard
+```
+
+### 🌐🔐 ACCESS DASHBOARD
+
+```text
+https://<WAZUH_SERVER_IP>
+```
+
+🚩 **VALIDATION:** Indexer, Manager, and Dashboard should be running before proceeding to agent onboarding.
+
+---
+
+## 🔐💾 PHASE 5 — CREDENTIALS & SECRET PROTECTION
+
+### ❗🚨 WHY THIS PHASE IS CRITICAL
+
+The Wazuh installation generates credentials that must never be committed to GitHub.
+
+### 📍🔎 EXTRACT INSTALLATION PASSWORDS
+
+Run on the Wazuh Server:
+
+```bash
+tar -O -xvf wazuh-install-files.tar \
+wazuh-install-files/wazuh-passwords.txt
+```
+
+### 🔐💾 STORE SECURELY
+
+Store credentials in a **password manager**.
+
+### 🚫❌ NEVER COMMIT
+
+```text
+wazuh-passwords.txt
+*.key
+*.pem
+*.crt
+.env
+API tokens
+AWS secrets
+Azure client secrets
+```
+
+### 🧠🔥 SOC RULE
+
+> **Never put real credentials, tokens, private keys, cloud secrets, or customer data into the Git repository.**
+
+---
+
+## 🪟🛡️ PHASE 6 — WINDOWS AGENT ONBOARDING
+
+### 📍🔎 WHERE TO CONFIGURE
+
+**Wazuh Dashboard → Windows Endpoint**
+
+### 🖥️ DASHBOARD
+
+```text
+Agents management
+   ↓
+Summary
+   ↓
+Deploy new agent
+   ↓
+Windows
+```
+
+Enter:
+
+```text
+Manager address
+Agent name
+Agent group
+```
+
+The Dashboard generates the installation command.
+
+### 🧑‍💻 RUN ON WINDOWS ENDPOINT
+
+Open **Administrator PowerShell**.
+
+Example:
+
+```powershell
+msiexec.exe /i .\wazuh-agent-<VERSION>.msi /q `
+WAZUH_MANAGER="<WAZUH_SERVER_IP>"
+```
+
+### ▶️ START AGENT
+
+```powershell
+Start-Service wazuhsvc
+Get-Service wazuhsvc
+```
+
+### 🔎 VERIFY
+
+```text
+Dashboard
+   ↓
+Agents management
+   ↓
+Summary
+```
+
+Expected:
+
+```text
+Active
+```
+
+🚩 **VALIDATION:** Windows endpoint must appear as an active Wazuh agent before configuring detailed log collection.
+
+---
+
+## 🐧🛡️ PHASE 7 — LINUX AGENT ONBOARDING
+
+### 📍🔎 WHERE TO RUN
+
+**Run on the Linux endpoint.**
+
+### 1️⃣📦 INSTALL PREREQUISITES
+
+```bash
+sudo apt-get update
+sudo apt-get install -y gnupg apt-transport-https curl
+```
+
+### 2️⃣🔑 IMPORT WAZUH GPG KEY
+
+```bash
+curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH \
+| sudo gpg --no-default-keyring \
+--keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg \
+--import
+
+sudo chmod 644 /usr/share/keyrings/wazuh.gpg
+```
+
+### 3️⃣📚 CONFIGURE REPOSITORY
+
+Configure the Wazuh repository according to the current Wazuh repository instructions.
+
+### 4️⃣📥 INSTALL AGENT
+
+```bash
+sudo WAZUH_MANAGER="<WAZUH_SERVER_IP>" \
+apt-get install wazuh-agent
+```
+
+### 5️⃣▶️ START AGENT
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable wazuh-agent
+sudo systemctl start wazuh-agent
+sudo systemctl status wazuh-agent
+```
+
+### ⚠️ VERSION COMPATIBILITY
+
+Wazuh recommends keeping the agent version compatible with the manager; the manager version should be equal to or newer than the agent.
+
+---
+
+## 🔗🧭 PHASE 8 — AGENT ENROLLMENT & VALIDATION
+
+### ❓🧠 WHY THIS PHASE IS CRITICAL
+
+A healthy agent connection must be established **before troubleshooting log collection**.
+
+### 🖥️ DASHBOARD
+
+```text
+Agents management
+   ↓
+Summary
+```
+
+### 🐧 LINUX VALIDATION
+
+```bash
+sudo systemctl status wazuh-agent
+sudo tail -f /var/ossec/logs/ossec.log
+```
+
+### 🪟 WINDOWS VALIDATION
+
+```powershell
+Get-Service wazuhsvc
+Get-Content "C:\Program Files (x86)\ossec-agent\ossec.log" -Wait
+```
+
+### 🛠️🔎 TROUBLESHOOT IN THIS ORDER
+
+```text
+DNS
+ ↓
+Network connectivity
+ ↓
+Wazuh ports
+ ↓
+Enrollment
+ ↓
+Agent service
+ ↓
+Agent logs
+ ↓
+Manager logs
+```
+
+🚩 **SOC TRUTH:** Do not jump directly to rules when the agent itself is not communicating.
+
+---
+
+## 🪟📥 PHASE 9 — WINDOWS EVENT COLLECTION
+
+### 📍🔎 WHERE TO CONFIGURE
+
+**Windows Endpoint**
+
+Configuration:
+
+```text
+C:\Program Files (x86)\ossec-agent\ossec.conf
+```
+
+### 🔐 COLLECT SECURITY EVENTS
+
+```xml
+<localfile>
+  <location>Security</location>
+  <log_format>eventchannel</log_format>
+</localfile>
+```
+
+### 📋 USEFUL WINDOWS CHANNELS
+
+```text
+Security
+System
+Application
+Microsoft-Windows-PowerShell/Operational
+Microsoft-Windows-Sysmon/Operational
+```
+
+### 🔄 RESTART
+
+```powershell
+Restart-Service wazuh
+```
+
+### 🔎 VALIDATE
+
+Generate a test event and verify:
+
+```text
+Wazuh Dashboard
+   ↓
+Security events
+```
+
+🚩 **FINDING:** If the event exists on Windows but does not appear in Wazuh, investigate collection and agent communication before detection rules.
+
+---
+
+## 🔬🪟 PHASE 10 — SYSMON TELEMETRY
+
+### 📍🔎 WHERE TO CONFIGURE
+
+**Windows Endpoint + Wazuh Agent**
+
+Install Sysmon on the Windows endpoint.
+
+### 🔎 VERIFY SYSMON
+
+```powershell
+Get-WinEvent -LogName "Microsoft-Windows-Sysmon/Operational" -MaxEvents 10
+```
+
+### 📥 CONFIGURE WAZUH COLLECTION
+
+```xml
+<localfile>
+  <location>Microsoft-Windows-Sysmon/Operational</location>
+  <log_format>eventchannel</log_format>
+</localfile>
+```
+
+### 🔄 RESTART WAZUH
+
+Restart the Wazuh agent.
+
+### 🧪 GENERATE TEST ACTIVITY
+
+```powershell
+powershell.exe -NoProfile -Command "Get-Process"
+```
+
+### 🔎 INVESTIGATE
+
+Review the resulting Sysmon events in Wazuh.
+
+🚩 **SOC VALUE:** Sysmon provides detailed endpoint telemetry useful for process, execution, and threat-hunting investigations.
+
+---
+
+## 🐧📥 PHASE 11 — LINUX LOG COLLECTION
+
+### 📍🔎 WHERE TO CONFIGURE
+
+```text
+Linux Endpoint
+   ↓
+/var/ossec/etc/ossec.conf
+```
+
+### 📥 AUTHENTICATION LOG
+
+```xml
+<localfile>
+  <location>/var/log/auth.log</location>
+  <log_format>syslog</log_format>
+</localfile>
+```
+
+### 📋 OTHER USEFUL SOURCES
+
+```text
+/var/log/auth.log
+/var/log/syslog
+/var/log/secure
+/var/log/messages
+journald
+auditd
+application logs
+```
+
+### 🔄 RESTART
+
+```bash
+sudo systemctl restart wazuh-agent
+```
+
+### 🧪 GENERATE TEST EVENT
+
+```bash
+ssh invalid-user@localhost
+```
+
+### 🔎 VALIDATE
+
+Check the resulting authentication alert in Wazuh.
+
+---
+
+## 📦📜 PHASE 12 — APPLICATION LOG COLLECTION
+
+### 📍🔎 EXAMPLE CONFIGURATION
+
+```xml
+<localfile>
+  <location>/opt/myapp/logs/application.log</location>
+  <log_format>syslog</log_format>
+</localfile>
+```
+
+### 🔄 VALIDATE
+
+Restart the agent and generate a test application event.
+
+### 🧩 IF WAZUH CANNOT DECODE THE LOG
+
+```text
+Application Log
+      ↓
+Custom Decoder
+      ↓
+Custom Rule
+      ↓
+Alert
+```
+
+🚩 **SOC TRUTH:** Collection without correct decoding does not automatically create a useful detection.
+
+---
+
+## 🔥🌐 PHASE 13 — FIREWALL & NETWORK DEVICE LOGGING
+
+### ❓🧠 WHY THIS PHASE IS CRITICAL
+
+Network telemetry provides visibility into VPN, administrative access, firewall denies, configuration changes, and suspicious outbound connections.
+
+### 📍🔎 WHERE TO CONFIGURE
+
+```text
+Firewall
+   ↓
+Syslog
+   ↓
+Wazuh Server
+```
+
+### 🔥 FIREWALL CONFIGURATION
+
+```text
+Syslog destination:
+<WAZUH_SERVER_IP>
+
+Port:
+514
+
+Protocol:
+TCP or UDP according to device/Wazuh design
+```
+
+### 🖥️ WAZUH CONFIGURATION
+
+```text
+/var/ossec/etc/ossec.conf
+```
+
+```xml
+<remote>
+  <connection>syslog</connection>
+  <port>514</port>
+  <protocol>tcp</protocol>
+</remote>
+```
+
+### 🔄 RESTART MANAGER
+
+```bash
+sudo systemctl restart wazuh-manager
+```
+
+### 🔎 VERIFY PORT
+
+```bash
+sudo ss -lntup | grep 514
+```
+
+### 🧪 GENERATE TEST EVENTS
+
+```text
+Firewall deny
+VPN login
+Admin login
+Configuration change
+```
+
+### 🔄📡 EXPECTED PIPELINE
+
+```text
+Firewall
+   ↓
+Syslog
+   ↓
+Wazuh
+   ↓
+Decoder
+   ↓
+Rule
+   ↓
+Alert
+```
+
+---
+
+## ☁️🛡️ PHASE 14 — AWS SECURITY LOGGING
+
+### 🏗️ AWS ARCHITECTURE
+
+```text
+CloudTrail / GuardDuty / VPC / WAF
+              ↓
+             S3
+              ↓
+       IAM least privilege
+              ↓
+         Wazuh aws-s3
+              ↓
+        Wazuh detection
+```
+
+### ☁️📜 CLOUDTRAIL
+
+### 📍 AWS CONSOLE
+
+```text
+AWS Console
+   ↓
+CloudTrail
+   ↓
+Trails
+   ↓
+Create trail
+   ↓
+Select S3 destination
+   ↓
+Enable logging
+```
+
+Configure Wazuh `aws-s3` integration against the S3 bucket.
+
+### 🧩 WAZUH CONFIGURATION
+
+```xml
+<wodle name="aws-s3">
+  <disabled>no</disabled>
+  <interval>10m</interval>
+  <run_on_start>yes</run_on_start>
+  <skip_on_error>yes</skip_on_error>
+  <bucket type="cloudtrail">
+    <name><BUCKET_NAME></name>
+    <aws_profile>default</aws_profile>
+  </bucket>
+</wodle>
+```
+
+### 🧪 TEST
+
+```text
+AWS Console login
+IAM change
+Security Group change
+S3 activity
+```
+
+Verify the resulting event in Wazuh.
+
+### 🛡️ GUARDDUTY
+
+Enable GuardDuty findings export to S3.
+
+Use an IAM policy containing only the required S3 permissions.
+
+```xml
+<wodle name="aws-s3">
+  <disabled>no</disabled>
+  <interval>10m</interval>
+  <run_on_start>yes</run_on_start>
+  <skip_on_error>yes</skip_on_error>
+  <bucket type="guardduty">
+    <name><BUCKET_NAME></name>
+    <aws_profile>default</aws_profile>
+  </bucket>
+</wodle>
+```
+
+---
+
+## ☁️🔐 PHASE 15 — AZURE / ENTRA ID
+
+### 📍🔎 WHERE TO CONFIGURE
+
+**Microsoft Entra ID**
+
+```text
+Microsoft Entra ID
+   ↓
+App registrations
+   ↓
+New registration
+```
+
+### 🔑 RECORD
+
+```text
+Tenant ID
+Client ID
+Client Secret
+```
+
+### 🔐 CONFIGURE
+
+Configure required API permissions.
+
+Grant:
+
+```text
+Admin consent
+```
+
+Configure the Wazuh integration.
+
+### 🧪 TEST EVENTS
+
+```text
+Successful login
+Failed login
+MFA event
+User creation
+Role assignment
+Conditional Access event
+```
+
+### 🔎 VALIDATE
+
+Verify events in Wazuh.
+
+---
+
+## ☁️📧 PHASE 16 — MICROSOFT 365 LOGGING
+
+Configure the Entra application for Microsoft 365 Management Activity API access.
+
+### 📥 COLLECT
+
+```text
+Audit
+Exchange activity
+SharePoint activity
+OneDrive activity
+Teams activity
+Azure/Entra activity
+```
+
+### 🧪 TEST
+
+Generate a test activity and verify ingestion into Wazuh.
+
+---
+
+## ☁️🔎 PHASE 17 — GOOGLE CLOUD LOGGING
+
+### 🏗️ ARCHITECTURE
+
+```text
+GCP Audit Logs
+      ↓
+Logging Sink
+      ↓
+Pub/Sub Topic
+      ↓
+Subscription
+      ↓
+Wazuh
+```
+
+### 📍🔎 CONFIGURE
+
+```text
+Project
+   ↓
+Service Account
+   ↓
+IAM permissions
+   ↓
+Pub/Sub Topic
+   ↓
+Subscription
+   ↓
+Logging Sink
+```
+
+### 🧪 TEST
+
+```text
+IAM change
+VM activity
+Network activity
+```
+
+Validate the resulting events in Wazuh.
+
+---
+
+## 🐙🔐 PHASE 18 — GITHUB SECURITY LOGGING
+
+### 📍🔎 CONFIGURE
+
+Configure organization audit logging/API access.
+
+### 📥 COLLECT
+
+```text
+Authentication
+Repository access
+Permission changes
+Organization changes
+PAT/token activity
+Repository security events
+```
+
+### 🧪 TEST
+
+Generate a test organization event.
+
+### 🔄 PIPELINE
+
+```text
+GitHub API
+   ↓
+Wazuh Integration
+   ↓
+Decoder
+   ↓
+Rule
+   ↓
+Alert
+```
+
+---
+
+## 🧬📁 PHASE 19 — FILE INTEGRITY MONITORING
+
+### 📍🔎 WHERE TO CONFIGURE
+
+**Linux Endpoint**
+
+```text
+/var/ossec/etc/ossec.conf
+```
+
+### 🧩 CONFIGURATION
+
+```xml
+<syscheck>
+  <directories realtime="yes">/etc</directories>
+  <directories realtime="yes">/var/www</directories>
+</syscheck>
+```
+
+### 🔄 RESTART
+
+```bash
+sudo systemctl restart wazuh-agent
+```
+
+### 🧪 TEST
+
+```bash
+sudo touch /etc/wazuh-test
+sudo sh -c 'echo test >> /etc/wazuh-test'
+sudo rm /etc/wazuh-test
+```
+
+### 🔎 INVESTIGATE
+
+Review the generated FIM alerts.
+
+### 🎯 DETECTION
+
+FIM detects:
+
+```text
+File Creation
+File Modification
+File Deletion
+```
+
+---
+
+## 🩺🔍 PHASE 20 — VULNERABILITY DETECTION
+
+### 🧠 WHAT WAZUH DOES
+
+Wazuh Syscollector gathers endpoint inventory such as operating-system and installed-package information.
+
+Vulnerability Detection correlates that inventory with vulnerability intelligence and identifies affected software/CVEs.
+
+### 📍🔎 DASHBOARD
+
+```text
+Dashboard
+   ↓
+Vulnerability detection
+```
+
+### 🔎 INVESTIGATE
+
+```text
+Agent
+CVE
+Package
+Installed version
+Severity
+Fix / remediation
+```
+
+🚩 **SOC ACTION:** Prioritize vulnerable assets based on severity, exposure, business importance, and remediation availability.
+
+---
+
+## 📋🛡️ PHASE 21 — SECURITY CONFIGURATION ASSESSMENT
+
+### 🧠 PURPOSE
+
+SCA evaluates endpoint configuration against security policies.
+
+### 📍🔎 DASHBOARD
+
+```text
+Dashboard
+   ↓
+Security Configuration Assessment
+```
+
+### 🔎 REVIEW
+
+```text
+Passed
+Failed
+Score
+Policy
+Recommendation
+```
+
+Wazuh ships OS-specific SCA policies with the agent/server installation.
+
+---
+
+## 🐳🔍 PHASE 22 — DOCKER MONITORING
+
+### 📍🔎 WHERE TO CONFIGURE
+
+**Docker Host + Wazuh Agent**
+
+Install the Wazuh agent on the Docker host and enable Docker monitoring.
+
+### 🧪 TEST CONTAINER ACTIVITY
+
+```bash
+docker run -d --name test-container httpd
+docker pause test-container
+docker unpause test-container
+docker stop test-container
+docker rm test-container
+```
+
+### 🔎 INVESTIGATE
+
+Review the resulting container events.
+
+### 🔄 PIPELINE
+
+```text
+Docker Host
+   ↓
+Wazuh Agent
+   ↓
+Docker Listener
+   ↓
+Wazuh Manager
+   ↓
+Alert
+```
+
+---
+
+## 🧩🔎 PHASE 23 — CUSTOM DECODER ENGINEERING
+
+### ❗🚫 NEVER MODIFY BUILT-IN RULESETS
+
+Use:
+
+```text
+/var/ossec/etc/decoders/local_decoder.xml
+```
+
+or a dedicated file under:
+
+```text
+/var/ossec/etc/decoders/
+```
+
+### 🧩 EXAMPLE
+
+```xml
+<decoder name="myapp">
+  <program_name>^myapp</program_name>
+</decoder>
+
+<decoder name="myapp-login">
+  <parent>myapp</parent>
+  <regex>User '(\w+)' logged from '(\d+.\d+.\d+.\d+)'</regex>
+  <order>user,srcip</order>
+</decoder>
+```
+
+### 🧠 DECODER PURPOSE
+
+```text
+Raw Application Log
+       ↓
+Pre-decoding
+       ↓
+Custom Decoder
+       ↓
+Structured Fields
+       ↓
+Custom Rule
+       ↓
+Alert
+```
+
+🚩 **BEST PRACTICE:** Keep custom decoder files under `/var/ossec/etc/decoders/` instead of modifying the packaged ruleset.
+
+---
+
+## 🚨⚙️ PHASE 24 — CUSTOM RULE ENGINEERING
+
+### 📍🔎 WHERE TO CONFIGURE
+
+```text
+/var/ossec/etc/rules/local_rules.xml
+```
+
+### 🆔 CUSTOM RULE ID RANGE
+
+```text
+100000–120000
+```
+
+### 🧩 EXAMPLE
+
+```xml
+<group name="myapp,">
+  <rule id="100100" level="10">
+    <decoded_as>myapp-login</decoded_as>
+    <description>Custom application login detected</description>
+  </rule>
+</group>
+```
+
+### 🔄 DETECTION FLOW
+
+```text
+Application Event
+      ↓
+Decoder
+      ↓
+myapp-login
+      ↓
+Rule 100100
+      ↓
+Level 10
+      ↓
+Alert
+```
+
+---
+
+## 🧪🚨 PHASE 25 — DECODER & RULE VALIDATION
+
+### 📍🔎 WHERE TO RUN
+
+**Wazuh Server**
+
+```bash
+sudo /var/ossec/bin/wazuh-logtest
+```
+
+### 🧪 SAMPLE LOG
+
+```text
+Dec 25 20:45:02 MyHost myapp[123]: User 'admin' logged from '192.168.1.100'
+```
+
+### 🔎 CHECK EACH PHASE
+
+```text
+Phase 1 → Pre-decoding
+Phase 2 → Decoder
+Phase 3 → Rule
+```
+
+### 🚩 IMPORTANT
+
+> **Do not deploy a custom detection before confirming decoder and rule behavior.**
+
+`wazuh-logtest` is intended for testing and debugging rules and decoders.
+
+---
+
+## ⚡🛡️ PHASE 26 — ACTIVE RESPONSE
+
+### 🔄 RESPONSE FLOW
+
+```text
+Detection
+   ↓
+Rule ID / Level
+   ↓
+Active Response
+   ↓
+Endpoint Action
+```
+
+### ⚔️ POSSIBLE ACTIONS
+
+```text
+Block IP
+Disable account
+Kill process
+Delete/quarantine file
+Restart service
+```
+
+Wazuh includes built-in response scripts such as:
+
+```text
+firewall-drop
+disable-account
+Windows netsh.exe
+```
+
+### 📍🔎 WHERE TO CONFIGURE
+
+```text
+/var/ossec/etc/ossec.conf
+```
+
+### 🧩 EXAMPLE
+
+```xml
+<active-response>
+  <command>firewall-drop</command>
+  <location>local</location>
+  <rules_id>RULE_ID</rules_id>
+  <timeout>180</timeout>
+</active-response>
+```
+
+### 🔄 RESTART MANAGER
+
+```bash
+sudo systemctl restart wazuh-manager
+```
+
+### ⚠️🚨 SOC WARNING
+
+Test carefully in a lab before enabling automatic blocking in production.
+
+---
+
+## 🎯🚨 PHASE 27 — SOC DETECTION USE CASES
+
+### 🔐 AUTHENTICATION
+
+```text
+Multiple failed logins
+Brute force
+Successful login after failures
+Invalid user
+Privileged login
+New account
+Account disabled
+```
+
+### 🪟 WINDOWS
+
+```text
+PowerShell execution
+Encoded PowerShell
+Suspicious process tree
+New service
+Scheduled task
+Registry modification
+LSASS access
+Credential dumping indicators
+Malware execution
+```
+
+### 🐧 LINUX
+
+```text
+SSH brute force
+Root login
+Sudo abuse
+New user
+Cron modification
+Suspicious shell
+Binary execution
+Persistence
+```
+
+### 🌐 NETWORK
+
+```text
+Port scan
+Firewall deny
+VPN login
+Admin login
+Configuration change
+Suspicious outbound connection
+```
+
+### ☁️ CLOUD
+
+```text
+Root/admin login
+MFA disabled
+IAM privilege escalation
+Access key creation
+Security group modification
+CloudTrail disabled
+Suspicious API activity
+```
+
+### 🎯🚨 DETECTION ENGINEERING PRINCIPLE
+
+Every use case should define:
+
+```text
+Data Source
+   ↓
+Required Fields
+   ↓
+Detection Logic
+   ↓
+Severity
+   ↓
+Alert
+   ↓
+Investigation
+   ↓
+Response
+```
+
+---
+
+## 🔎🧠 PHASE 28 — SOC INVESTIGATION METHOD
+
+### ❓🔍 QUESTIONS TO ASK FOR EVERY ALERT
+
+```text
+1. What happened?
+2. Which user?
+3. Which endpoint?
+4. Source IP?
+5. Destination IP?
+6. Process?
+7. Parent process?
+8. Command line?
+9. Timestamp?
+10. What happened before?
+11. What happened after?
+12. Is the activity expected?
+13. Is there evidence of persistence?
+14. Is lateral movement possible?
+15. What containment is required?
+```
+
+### 🧠🔄 INVESTIGATION MINDSET
+
+```text
+Alert
+ ↓
+Context
+ ↓
+Timeline
+ ↓
+User
+ ↓
+Endpoint
+ ↓
+Source IP
+ ↓
+Process / Command Line
+ ↓
+Previous Activity
+ ↓
+Follow-on Activity
+ ↓
+Persistence
+ ↓
+Lateral Movement
+ ↓
+Containment
+```
+
+### 🚩 SOC FINDING
+
+Use Wazuh event fields to pivot through the investigation.
+
+---
+
+## 🛠️🔍 PHASE 29 — TROUBLESHOOTING FRAMEWORK
+
+### ❓🧠 WHY THIS PHASE IS CRITICAL
+
+Always troubleshoot from the source toward the dashboard instead of randomly changing rules or configurations.
+
+### 🔄 MASTER TROUBLESHOOTING FLOW
+
+```text
+SOURCE
+  ↓
+NETWORK
+  ↓
+AGENT
+  ↓
+MANAGER
+  ↓
+INGESTION
+  ↓
+DECODER
+  ↓
+RULE
+  ↓
+ALERT
+  ↓
+INDEXER
+  ↓
+DASHBOARD
+```
+
+### 🖥️ MANAGER
+
+```bash
+sudo systemctl status wazuh-manager
+sudo tail -f /var/ossec/logs/ossec.log
+```
+
+### 🛡️ AGENT
+
+```bash
+sudo systemctl status wazuh-agent
+sudo tail -f /var/ossec/logs/ossec.log
+```
+
+### 🚨 ALERTS
+
+```bash
+sudo tail -f /var/ossec/logs/alerts/alerts.json
+```
+
+### 🌐 PORTS
+
+```bash
+sudo ss -lntup
+```
+
+### 🧩 RULES / DECODERS
+
+```bash
+sudo /var/ossec/bin/wazuh-logtest
+```
+
+### 🧠🔥 TROUBLESHOOTING RULE
+
+> **If the event does not reach Wazuh, changing a detection rule will not fix the problem.**
+
+---
+
+## 🔒🛡️ PHASE 30 — SECURITY HARDENING
+
+### 🔐 AFTER THE LAB WORKS
+
+```text
+✓ Restrict management access
+✓ Restrict firewall ports
+✓ Use TLS
+✓ Use least-privilege cloud permissions
+✓ Protect API credentials
+✓ Rotate secrets
+✓ Backup configuration
+✓ Monitor configuration changes
+✓ Disable unnecessary services
+✓ Keep manager and agents compatible
+✓ Protect the Wazuh Dashboard
+```
+
+### 🚨 EXPOSURE REDUCTION
+
+Management interfaces should not be unnecessarily exposed.
+
+Cloud permissions should follow:
+
+```text
+Least Privilege
+   ↓
+Only Required Permissions
+   ↓
+Regular Review
+   ↓
+Credential Rotation
+```
+
+---
+
+## 🐙🔐 PHASE 31 — GITHUB REPOSITORY SECURITY
+
+### ❗🚫 NEVER UPLOAD
+
+```text
+Passwords
+Private keys
+Certificates containing private material
+Cloud credentials
+API tokens
+Client secrets
+Production IPs if sensitive
+Customer logs
+Personal information
+Real security events
+```
+
+### ✅ USE PLACEHOLDERS
+
+```text
+<WAZUH_SERVER_IP>
+<AGENT_IP>
+<AWS_ACCOUNT_ID>
+<BUCKET_NAME>
+<TENANT_ID>
+<CLIENT_ID>
+<CLIENT_SECRET>
+```
+
+### 🧠🔥 REPOSITORY RULE
+
+> **The repository should demonstrate implementation without exposing real credentials, customer information, production infrastructure, or sensitive security evidence.**
+
+---
+
+## ✅🧪 PHASE 32 — FINAL VALIDATION CHECKLIST
+
+```text
+[ ] Wazuh Indexer running
+[ ] Wazuh Manager running
+[ ] Wazuh Dashboard running
+[ ] Dashboard accessible
+[ ] Windows agent active
+[ ] Linux agent active
+[ ] Windows Security logs arriving
+[ ] Sysmon logs arriving
+[ ] Linux SSH logs arriving
+[ ] Application logs arriving
+[ ] Firewall logs arriving
+[ ] AWS logs arriving
+[ ] Azure logs arriving
+[ ] M365 logs arriving
+[ ] GCP logs arriving
+[ ] GitHub logs arriving
+[ ] FIM tested
+[ ] Vulnerability Detection tested
+[ ] SCA tested
+[ ] Docker monitoring tested
+[ ] Custom decoder tested
+[ ] Custom rule tested
+[ ] wazuh-logtest tested
+[ ] Active Response tested
+[ ] SOC use cases validated
+[ ] Backups configured
+[ ] Secrets excluded from Git
+```
+
+### 🚩 FINAL VALIDATION RULE
+
+Do not consider the implementation complete until the major telemetry, detection, investigation, and response paths have been tested.
+
+---
+
+## 🔄🚨 PHASE 33 — FINAL SOC PIPELINE
+
+```text
+                         DATA SOURCES
+                              │
+              ┌───────────────┼───────────────┐
+              │               │               │
+           Endpoint         Network          Cloud
+              │               │               │
+         Wazuh Agent        Syslog            API
+              │               │               │
+              └───────────────┼───────────────┘
+                              ↓
+                       WAZUH MANAGER
+                              ↓
+                          DECODERS
+                              ↓
+                            RULES
+                              ↓
+                           ALERTS
+                              ↓
+                          INDEXER
+                              ↓
+                         DASHBOARD
+                              ↓
+                        SOC ANALYSIS
+                              ↓
+                     INCIDENT RESPONSE
+                              ↓
+                       ACTIVE RESPONSE
+```
+
+---
+
+# 🧠🔥 FINAL SOC TRUTH
+
+> **A Wazuh SOC is not just a dashboard. The real implementation is the complete chain: DATA SOURCES → COLLECTION → INGESTION → DECODING → DETECTION → ALERT → INVESTIGATION → RESPONSE → VALIDATION → TROUBLESHOOTING.**
+
+> **If you cannot explain where the data comes from, where it is collected, how it is decoded, which rule detects it, where the alert is stored, how the analyst investigates it, and how the response is validated, the SOC implementation is not complete.**
+
