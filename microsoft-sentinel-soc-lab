@@ -1,0 +1,1500 @@
+
+# Microsoft Sentinel SOC Lab
+## Complete SIEM Integration From Scratch
+
+A practical, step-by-step Microsoft Sentinel SOC lab covering Azure setup, Log Analytics, Sentinel onboarding, data connectors, KQL, detection rules, incidents, investigation, Syslog/CEF integration, and basic automation.
+
+---
+
+## 📌 What You Will Build
+
+By the end of this lab, you will have:
+
+```text
+Azure Account
+     ↓
+Azure Subscription
+     ↓
+Resource Group
+     ↓
+Log Analytics Workspace
+     ↓
+Microsoft Sentinel
+     ↓
+Azure Activity Logs
+     ↓
+Microsoft Entra ID
+     ↓
+Security Telemetry
+     ↓
+KQL Investigation
+     ↓
+Analytics Rules
+     ↓
+Alerts
+     ↓
+Incidents
+     ↓
+Investigation
+     ↓
+Syslog / CEF
+     ↓
+FortiGate / Security Devices
+```
+
+### Skills Covered
+
+- Azure fundamentals
+- Microsoft Sentinel
+- Log Analytics
+- Data connectors
+- KQL
+- Detection engineering
+- Alert triage
+- Incident investigation
+- Syslog
+- CEF
+- Azure Monitor Agent
+- Data Collection Rules
+- Security monitoring
+- Basic SOAR concepts
+
+---
+
+# 1. Prerequisites
+
+You need:
+
+- Microsoft account
+- Azure subscription
+- Internet connection
+- Web browser
+- Credit card or non-prepaid debit card for eligible Azure Free Account signup
+- Basic understanding of networking and cybersecurity
+
+You **do not need to download Microsoft Sentinel**.
+
+Microsoft Sentinel is a cloud-based service running inside Azure. You create a Log Analytics workspace and enable Sentinel on that workspace. Microsoft currently recommends the Defender portal for Sentinel operations, with the Azure portal transition planned to complete after March 31, 2027.
+
+---
+
+# 2. Azure Free Account
+
+For a new Azure customer, the Azure Free Account currently provides:
+
+- $200 Azure credit for 30 days
+- Free monthly amounts for selected services
+- Spending protection while using the free account
+- No upfront commitment
+
+Microsoft requires a valid payment method for verification. A temporary $1 authorization may appear during verification and is reversed.
+
+### Important
+
+The Azure Free Account is **not the same thing as unlimited free Azure**.
+
+Once the free credit expires or you move to pay-as-you-go, normal Azure billing applies.
+
+For this lab, start small and monitor:
+
+**Azure Portal → Cost Management → Cost Analysis**
+
+---
+
+# 3. Microsoft Sentinel Free Trial
+
+Microsoft Sentinel currently provides a **31-day free trial**.
+
+The first **10 GB/day** of Analytics-tier data ingestion is free during the trial, subject to Microsoft's trial conditions.
+
+However, other Azure resources and certain Sentinel capabilities can still generate charges.
+
+Therefore:
+
+> Do not create multiple large VMs and start forwarding every possible log just because the dashboard looks impressive.
+
+Start with low-volume telemetry.
+
+---
+
+# 4. Create the Azure Resource Group
+
+Open the Azure Portal.
+
+Search:
+
+```text
+Resource groups
+```
+
+Select:
+
+**Create**
+
+### Enter:
+
+```text
+Subscription:
+Your Azure subscription
+
+Resource group:
+rg-soc-lab
+
+Region:
+Choose a nearby supported region
+```
+
+Click:
+
+**Review + create**
+
+Then:
+
+**Create**
+
+### Why use a Resource Group?
+
+A Resource Group provides a logical container for your lab resources.
+
+For example:
+
+```text
+rg-soc-lab
+│
+├── Log Analytics Workspace
+├── Microsoft Sentinel
+├── Virtual Machine
+├── Data Collection Rules
+└── Other SOC lab resources
+```
+
+This makes resource management and cleanup much easier.
+
+---
+
+# 5. Create Log Analytics Workspace
+
+Search Azure Portal for:
+
+```text
+Log Analytics workspaces
+```
+
+Select:
+
+**Create**
+
+### Basics
+
+Subscription:
+
+```text
+Your Azure subscription
+```
+
+Resource Group:
+
+```text
+rg-soc-lab
+```
+
+Workspace name:
+
+```text
+law-soc-lab
+```
+
+Region:
+
+```text
+Same region as your lab resources
+```
+
+Select:
+
+**Review + create**
+
+Then:
+
+**Create**
+
+---
+
+# 6. What Is Log Analytics?
+
+Log Analytics is where Azure Monitor stores and queries telemetry.
+
+Think of it as the central log repository underneath Sentinel.
+
+Conceptually:
+
+```text
+Data Source
+     ↓
+Data Connector
+     ↓
+Log Analytics Workspace
+     ↓
+Microsoft Sentinel
+     ↓
+KQL
+```
+
+Sentinel uses the workspace to store and analyze security data.
+
+---
+
+# 7. Enable Microsoft Sentinel
+
+Search:
+
+```text
+Microsoft Sentinel
+```
+
+Select:
+
+**Microsoft Sentinel**
+
+Choose:
+
+**Create**
+
+Select:
+
+```text
+law-soc-lab
+```
+
+Click:
+
+**Add**
+
+Microsoft's onboarding process requires an active Azure subscription and appropriate permissions.
+
+---
+
+# 8. Access Microsoft Sentinel
+
+Open:
+
+**Microsoft Defender portal**
+
+Navigate to:
+
+```text
+Microsoft Sentinel
+```
+
+Your workspace should now appear.
+
+You may see sections such as:
+
+```text
+Overview
+Incidents
+Hunting
+Notebooks
+Content Hub
+Data Connectors
+Analytics
+Automation
+```
+
+The exact portal UI can change over time, but the underlying Sentinel workflow remains:
+
+```text
+Collect
+   ↓
+Normalize
+   ↓
+Query
+   ↓
+Detect
+   ↓
+Investigate
+   ↓
+Respond
+```
+
+---
+
+# 9. Install a Sentinel Solution
+
+Go to:
+
+```text
+Microsoft Sentinel
+→ Content hub
+```
+
+Search for:
+
+```text
+Azure Activity
+```
+
+Open the Azure Activity solution.
+
+Select:
+
+**Install**
+
+The Content Hub contains packaged Sentinel solutions, including connectors, analytics rules, workbooks, hunting queries, and related security content.
+
+---
+
+# 10. Connect Azure Activity Logs
+
+Go to:
+
+```text
+Microsoft Sentinel
+→ Configuration
+→ Data connectors
+```
+
+Search:
+
+```text
+Azure Activity
+```
+
+Open:
+
+**Azure Activity**
+
+Configure the connector according to the current portal instructions.
+
+Once connected, Azure Activity data can be queried from Sentinel.
+
+---
+
+# 11. Generate Azure Activity
+
+Now perform normal Azure actions.
+
+For example:
+
+- Create a resource
+- Modify a resource
+- Open a resource configuration
+- Create or modify a role assignment
+- Change a resource setting
+
+These activities can generate Azure Activity records.
+
+This gives you your first real telemetry source.
+
+---
+
+# 12. Run Your First KQL Query
+
+Open:
+
+```text
+Microsoft Sentinel
+→ Logs
+```
+
+Run:
+
+```kusto
+AzureActivity
+| sort by TimeGenerated desc
+```
+
+### What does this do?
+
+`AzureActivity`
+
+Specifies the table.
+
+```text
+|
+```
+
+Passes the results to the next operation.
+
+```text
+sort by TimeGenerated desc
+```
+
+Displays newest events first.
+
+---
+
+# 13. Understand the Event
+
+Look at fields such as:
+
+```text
+TimeGenerated
+OperationNameValue
+ActivityStatusValue
+Caller
+ResourceGroup
+ResourceId
+SubscriptionId
+ResourceProviderValue
+```
+
+Ask:
+
+```text
+Who?
+What?
+When?
+Where?
+Result?
+Which resource?
+```
+
+This is the beginning of SOC investigation.
+
+---
+
+# 14. Find Common Azure Operations
+
+Run:
+
+```kusto
+AzureActivity
+| summarize Count=count() by OperationNameValue
+| order by Count desc
+```
+
+This helps identify which operations are occurring most frequently.
+
+---
+
+# 15. Investigate Administrative Activity
+
+Run:
+
+```kusto
+AzureActivity
+| where ActivityStatusValue =~ "Succeeded"
+| project
+    TimeGenerated,
+    Caller,
+    OperationNameValue,
+    ResourceGroup,
+    ResourceId
+| sort by TimeGenerated desc
+```
+
+Now you can see:
+
+```text
+Timestamp
+User
+Action
+Resource Group
+Resource
+```
+
+---
+
+# 16. Filter a Specific User
+
+Suppose you want to investigate:
+
+```text
+user@example.com
+```
+
+Use:
+
+```kusto
+AzureActivity
+| where Caller =~ "user@example.com"
+| project
+    TimeGenerated,
+    Caller,
+    OperationNameValue,
+    ActivityStatusValue,
+    ResourceId
+| sort by TimeGenerated desc
+```
+
+---
+
+# 17. Connect Microsoft Entra ID
+
+Microsoft Entra ID provides identity and authentication telemetry.
+
+Typical security investigations include:
+
+- Failed sign-ins
+- Successful sign-ins
+- MFA activity
+- Conditional Access
+- Risky sign-ins
+- Administrative changes
+- Account changes
+
+Go to:
+
+```text
+Microsoft Sentinel
+→ Content hub
+```
+
+Search for:
+
+```text
+Microsoft Entra ID
+```
+
+Install the relevant solution.
+
+Then open:
+
+```text
+Data connectors
+```
+
+Configure the Entra connector according to your tenant and licensing.
+
+---
+
+# 18. Why Entra ID Is Important
+
+Modern SOC investigations are heavily identity-driven.
+
+A useful investigation chain is:
+
+```text
+User
+ ↓
+Authentication
+ ↓
+Device
+ ↓
+IP Address
+ ↓
+Application
+ ↓
+Resource
+ ↓
+Action
+```
+
+For example:
+
+```text
+User login
+   ↓
+Unusual IP
+   ↓
+MFA activity
+   ↓
+Azure resource access
+   ↓
+Privilege change
+```
+
+That is much more useful than looking at a single alert in isolation.
+
+---
+
+# 19. Connect Microsoft Defender
+
+If you have Microsoft Defender security products available, Sentinel can integrate with Microsoft Defender XDR.
+
+The Defender XDR connector provides service-to-service integration for Microsoft security telemetry.
+
+Conceptually:
+
+```text
+Microsoft Defender
+        ↓
+Defender XDR
+        ↓
+Microsoft Sentinel
+        ↓
+Incident
+        ↓
+SOC Investigation
+```
+
+This allows security alerts to be correlated with other Sentinel data.
+
+---
+
+# 20. Understand Data Connectors
+
+A connector is the bridge between a telemetry source and Sentinel.
+
+Examples:
+
+```text
+Azure Activity
+Microsoft Entra ID
+Microsoft Defender XDR
+Microsoft 365
+Windows
+Linux
+FortiGate
+Firewall
+IDS/IPS
+EDR
+Third-party applications
+```
+
+Microsoft provides built-in connectors for many Microsoft products and supports non-Microsoft integrations through technologies such as Syslog, CEF, REST APIs, Azure Monitor Agent, and custom connector mechanisms.
+
+---
+
+# 21. Syslog Integration
+
+For network/security devices:
+
+```text
+Firewall
+   ↓
+Syslog
+   ↓
+Linux Log Forwarder
+   ↓
+Azure Monitor Agent
+   ↓
+Log Analytics
+   ↓
+Microsoft Sentinel
+```
+
+This is especially useful for:
+
+- FortiGate
+- Palo Alto
+- Cisco
+- SonicWall
+- Linux systems
+- Network appliances
+
+---
+
+# 22. CEF Integration
+
+CEF means:
+
+**Common Event Format**
+
+Many security appliances can generate CEF-formatted events.
+
+Architecture:
+
+```text
+Security Appliance
+       ↓
+      CEF
+       ↓
+Linux Log Forwarder
+       ↓
+Azure Monitor Agent
+       ↓
+Log Analytics
+       ↓
+Sentinel
+```
+
+CEF events generally appear in:
+
+```text
+CommonSecurityLog
+```
+
+Syslog events appear in:
+
+```text
+Syslog
+```
+
+Microsoft documents Syslog and CEF ingestion through Azure Monitor Agent and Data Collection Rules.
+
+---
+
+# 23. Create a Linux Log Forwarder
+
+For a complete Syslog/CEF lab, use a Linux machine as the log forwarder.
+
+Example:
+
+```text
+Ubuntu Linux
+```
+
+The machine receives:
+
+```text
+Firewall → Syslog/CEF → Linux
+```
+
+and forwards telemetry through:
+
+```text
+Azure Monitor Agent
+```
+
+---
+
+# 24. Azure Monitor Agent
+
+AMA means:
+
+**Azure Monitor Agent**
+
+It is Microsoft's current agent used for collecting telemetry from supported systems.
+
+For Syslog/CEF integration, Sentinel uses AMA together with a:
+
+**Data Collection Rule (DCR)**
+
+Architecture:
+
+```text
+Device
+  ↓
+Syslog / CEF
+  ↓
+Linux Forwarder
+  ↓
+AMA
+  ↓
+DCR
+  ↓
+Log Analytics
+  ↓
+Sentinel
+```
+
+---
+
+# 25. Create Data Collection Rule
+
+Go to:
+
+```text
+Microsoft Sentinel
+→ Configuration
+→ Data connectors
+```
+
+Search:
+
+```text
+Syslog via AMA
+```
+
+or:
+
+```text
+Common Event Format via AMA
+```
+
+Open the connector.
+
+Select:
+
+**Create data collection rule**
+
+Provide:
+
+```text
+DCR Name:
+dcr-soc-syslog
+
+Subscription:
+Your subscription
+
+Resource Group:
+rg-soc-lab
+```
+
+Select the Linux forwarder under Resources.
+
+Microsoft's current Syslog/CEF process uses a DCR and Azure Monitor Agent on the log forwarder.
+
+---
+
+# 26. Configure FortiGate
+
+For a FortiGate integration:
+
+```text
+FortiGate
+    ↓
+Syslog / CEF
+    ↓
+Linux Forwarder
+    ↓
+AMA
+    ↓
+Sentinel
+```
+
+Configure the FortiGate logging destination to point to the Linux forwarder's IP.
+
+Typical information required:
+
+```text
+Destination IP
+Destination Port
+Protocol
+Log Format
+Facility
+Severity
+```
+
+Do not expose your log forwarder directly to the public Internet.
+
+Use private networking/VPN wherever possible.
+
+---
+
+# 27. Validate Syslog
+
+After configuration, generate activity on the firewall.
+
+For example:
+
+- Login attempt
+- Firewall policy hit
+- Denied connection
+- VPN activity
+- Administrative action
+
+Then query:
+
+```kusto
+Syslog
+| sort by TimeGenerated desc
+```
+
+For CEF:
+
+```kusto
+CommonSecurityLog
+| sort by TimeGenerated desc
+```
+
+---
+
+# 28. Create Your First Detection
+
+Now move from:
+
+**Monitoring → Detection Engineering**
+
+Example scenario:
+
+### Multiple failed administrative logins
+
+Concept:
+
+```text
+Multiple failures
+        ↓
+Same source IP
+        ↓
+Short time period
+        ↓
+Administrative target
+        ↓
+Potential brute force
+```
+
+Example KQL structure:
+
+```kusto
+CommonSecurityLog
+| where DeviceVendor contains "Fortinet"
+| where Message has "failed"
+| summarize
+    FailedAttempts=count(),
+    FirstSeen=min(TimeGenerated),
+    LastSeen=max(TimeGenerated)
+    by SourceIP
+| where FailedAttempts >= 10
+```
+
+Adjust the fields and conditions according to the actual logs received from your device.
+
+---
+
+# 29. Create Analytics Rule
+
+Go to:
+
+```text
+Microsoft Sentinel
+→ Analytics
+→ Create
+→ Scheduled query rule
+```
+
+Configure:
+
+### Rule name
+
+```text
+Multiple Failed Administrative Login Attempts
+```
+
+### Severity
+
+```text
+Medium
+```
+
+### Query
+
+Use your validated KQL.
+
+### Frequency
+
+For a lab:
+
+```text
+Every 5 minutes
+```
+
+### Lookup period
+
+For example:
+
+```text
+Last 15 minutes
+```
+
+The exact values should match the behavior you're trying to detect.
+
+---
+
+# 30. Alert vs Incident
+
+This distinction is critical.
+
+```text
+Event
+ ↓
+Detection
+ ↓
+Alert
+ ↓
+Incident
+ ↓
+Investigation
+ ↓
+Response
+```
+
+### Event
+
+Raw activity.
+
+### Alert
+
+A detection rule identified suspicious activity.
+
+### Incident
+
+A security case that groups related alerts/entities for investigation.
+
+---
+
+# 31. Investigate an Incident
+
+Open:
+
+```text
+Microsoft Sentinel
+→ Incidents
+```
+
+Select your incident.
+
+Review:
+
+```text
+Entities
+Timeline
+Alerts
+Evidence
+Source IP
+User
+Host
+Account
+Process
+Activity
+```
+
+Ask:
+
+```text
+Who performed the activity?
+What happened?
+When?
+From where?
+Was it successful?
+What happened immediately before?
+What happened afterward?
+Is this expected?
+```
+
+---
+
+# 32. Build a Timeline
+
+A useful SOC timeline:
+
+```text
+10:01:02  Failed login
+10:01:05  Failed login
+10:01:07  Failed login
+10:01:10  Failed login
+10:01:15  Successful login
+10:01:20  Configuration change
+```
+
+The last two events radically change the investigation.
+
+This is why:
+
+> Never investigate a security alert as a single isolated event.
+
+---
+
+# 33. Threat Hunting
+
+Once your detection works, use the same data for proactive hunting.
+
+Example:
+
+```kusto
+CommonSecurityLog
+| summarize
+    Events=count(),
+    FirstSeen=min(TimeGenerated),
+    LastSeen=max(TimeGenerated)
+    by SourceIP
+| order by Events desc
+```
+
+Now identify:
+
+```text
+High-volume IPs
+Repeated activity
+Unusual sources
+Potential scanners
+Potential brute-force sources
+```
+
+---
+
+# 34. Add Automation
+
+Once detection and investigation are working, introduce automation.
+
+Architecture:
+
+```text
+Detection
+   ↓
+Alert
+   ↓
+Incident
+   ↓
+Automation Rule
+   ↓
+Logic App / Playbook
+   ↓
+Response
+```
+
+Possible actions:
+
+- Send notification
+- Add incident comment
+- Enrich IP
+- Create ticket
+- Notify SOC team
+- Trigger containment workflow
+
+Be careful with automatic blocking.
+
+A bad detection + automatic blocking = very efficient way to block your own business. Humanity has invented this lesson repeatedly.
+
+---
+
+# 35. Cost Management
+
+For this lab:
+
+### Start with
+
+```text
+Azure Activity
+Entra ID
+Defender alerts
+KQL
+Analytics rules
+```
+
+### Later add
+
+```text
+Windows
+Linux
+Syslog
+CEF
+FortiGate
+Other security products
+```
+
+Monitor:
+
+```text
+Azure Portal
+→ Cost Management
+→ Cost Analysis
+```
+
+Also check Sentinel's trial information and ingestion usage.
+
+Microsoft notes that some sources and alerts are free while raw telemetry from certain services can still be billable.
+
+---
+
+# 36. Recommended Lab Naming Convention
+
+Use consistent names:
+
+```text
+Resource Group
+rg-soc-lab
+
+Log Analytics
+law-soc-lab
+
+Data Collection Rule
+dcr-soc-syslog
+
+Linux Forwarder
+vm-soc-forwarder
+
+Virtual Network
+vnet-soc-lab
+
+Subnet
+snet-soc-forwarder
+```
+
+This makes the environment much easier to understand.
+
+---
+
+# 37. Complete Architecture
+
+Your final lab can look like this:
+
+```text
+                    ┌─────────────────────┐
+                    │   Microsoft Azure   │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │ Resource Group      │
+                    │ rg-soc-lab          │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │ Log Analytics       │
+                    │ law-soc-lab         │
+                    └──────────┬──────────┘
+                               │
+              ┌────────────────▼────────────────┐
+              │      Microsoft Sentinel         │
+              └───────┬──────────┬──────────────┘
+                      │          │
+             ┌────────▼───┐  ┌───▼───────────┐
+             │ Microsoft  │  │ Third Party   │
+             │ Sources    │  │ Sources       │
+             └─────┬──────┘  └──────┬────────┘
+                   │                 │
+          ┌────────▼────────┐  ┌────▼──────────┐
+          │ Entra ID        │  │ FortiGate     │
+          │ Defender XDR    │  │ Firewall      │
+          │ Azure Activity  │  │ Syslog / CEF  │
+          └────────┬────────┘  └────┬──────────┘
+                   │                │
+                   │          ┌─────▼──────┐
+                   │          │ Linux      │
+                   │          │ Forwarder  │
+                   │          │ AMA + DCR   │
+                   │          └─────┬──────┘
+                   │                │
+                   └────────┬───────┘
+                            │
+                     ┌──────▼──────┐
+                     │ KQL         │
+                     │ Investigation│
+                     └──────┬──────┘
+                            │
+                     ┌──────▼──────┐
+                     │ Analytics   │
+                     │ Rules       │
+                     └──────┬──────┘
+                            │
+                     ┌──────▼──────┐
+                     │ Alerts      │
+                     └──────┬──────┘
+                            │
+                     ┌──────▼──────┐
+                     │ Incidents   │
+                     └──────┬──────┘
+                            │
+                     ┌──────▼──────┐
+                     │ Investigation│
+                     └──────┬──────┘
+                            │
+                     ┌──────▼──────┐
+                     │ Response /  │
+                     │ Automation  │
+                     └─────────────┘
+```
+
+---
+
+# 38. SOC Investigation Framework
+
+For every incident, follow:
+
+```text
+1. Detect
+2. Validate
+3. Identify
+4. Scope
+5. Correlate
+6. Investigate
+7. Determine Root Cause
+8. Contain
+9. Eradicate
+10. Recover
+11. Document
+12. Improve Detection
+```
+
+---
+
+# 39. Questions Every SOC Analyst Should Ask
+
+### Identity
+
+```text
+Who performed the activity?
+Was the account authorized?
+Was MFA successful?
+Was the login expected?
+```
+
+### Network
+
+```text
+What was the source IP?
+Is it internal or external?
+Is it known?
+Was there unusual traffic?
+```
+
+### Endpoint
+
+```text
+Which host?
+Which process?
+Which user?
+What command?
+What files were created?
+```
+
+### Cloud
+
+```text
+Which subscription?
+Which resource?
+Which operation?
+Who performed it?
+Was privilege changed?
+```
+
+### Timeline
+
+```text
+What happened before?
+What happened during?
+What happened after?
+```
+
+---
+
+# 40. Final Learning Path
+
+Follow this order instead of trying to build the entire enterprise SOC on day one:
+
+```text
+PHASE 1
+Azure Fundamentals
+        ↓
+PHASE 2
+Log Analytics
+        ↓
+PHASE 3
+Microsoft Sentinel
+        ↓
+PHASE 4
+Azure Activity Logs
+        ↓
+PHASE 5
+KQL
+        ↓
+PHASE 6
+Microsoft Entra ID
+        ↓
+PHASE 7
+Defender XDR
+        ↓
+PHASE 8
+Analytics Rules
+        ↓
+PHASE 9
+Incident Investigation
+        ↓
+PHASE 10
+Linux + Syslog
+        ↓
+PHASE 11
+CEF
+        ↓
+PHASE 12
+FortiGate Integration
+        ↓
+PHASE 13
+Threat Hunting
+        ↓
+PHASE 14
+Automation / SOAR
+```
+
+---
+
+# 41. Splunk vs Microsoft Sentinel
+
+| Splunk | Microsoft Sentinel |
+|---|---|
+| Splunk Enterprise/Cloud | Microsoft Sentinel |
+| Index | Log Analytics Workspace |
+| Sourcetype | Table / schema |
+| SPL | KQL |
+| Forwarder | Azure Monitor Agent / connectors |
+| Search | Logs |
+| Correlation Search | Analytics Rule |
+| Notable Event | Alert / Incident |
+| ES Incident Review | Sentinel Incidents |
+| SOAR | Automation / Playbooks |
+| Dashboards | Workbooks |
+
+The important conceptual difference is:
+
+```text
+Splunk:
+Data → Index → SPL → Correlation → Alert
+
+Sentinel:
+Data → Workspace/Table → KQL → Analytics Rule → Alert → Incident
+```
+
+---
+
+# 42. Final Objective
+
+After completing this lab, you should be able to answer:
+
+```text
+How does data enter Sentinel?
+
+Where is the data stored?
+
+How do I query it?
+
+How do I create a detection?
+
+How does an alert become an incident?
+
+How do I investigate an incident?
+
+How do I correlate identity + endpoint + network data?
+
+How do I integrate a firewall?
+
+How do I automate a response?
+
+How do I control ingestion costs?
+```
+
+If you can answer all of these **and demonstrate them in your own Azure lab**, you are no longer just learning Sentinel terminology.
+
+You are building an actual SOC workflow.
+
+---
+
+## 📚 Official Documentation
+
+- Microsoft Sentinel onboarding:  
+  [Microsoft Learn — Onboard Microsoft Sentinel](https://learn.microsoft.com/azure/sentinel/quickstart-onboard?tabs=defender-portal&utm_source=chatgpt.com)
+
+- Azure Free Account:  
+  [Microsoft Azure — Free Account](https://azure.microsoft.com/en-us/pricing/purchase-options/azure-account?azure-portal=true%5C&icid=azurefreeaccount&utm_source=chatgpt.com)
+
+- Microsoft Sentinel pricing and free trial:  
+  [Microsoft Learn — Sentinel Billing and Pricing](https://learn.microsoft.com/en-us/azure/sentinel/billing?trk=article-ssr-frontend-pulse_little-text-block&utm_source=chatgpt.com)
+
+- Sentinel data connectors:  
+  [Microsoft Learn — Sentinel Data Connectors](https://learn.microsoft.com/en-us/azure/sentinel/connect-data-sources?utm_source=chatgpt.com)
+
+- Syslog/CEF with Azure Monitor Agent:  
+  [Microsoft Learn — Syslog and CEF via AMA](https://learn.microsoft.com/azure/sentinel/connect-cef-syslog-ama?utm_source=chatgpt.com)
+
+---
+
+## 🧪 Lab Completion Checklist
+
+- [ ] Azure account created
+- [ ] Subscription available
+- [ ] Resource group created
+- [ ] Log Analytics workspace created
+- [ ] Microsoft Sentinel enabled
+- [ ] Azure Activity solution installed
+- [ ] Azure Activity connector configured
+- [ ] First KQL query executed
+- [ ] Entra ID connected
+- [ ] Defender integration understood/configured
+- [ ] Analytics rule created
+- [ ] Alert generated
+- [ ] Incident investigated
+- [ ] Linux forwarder deployed
+- [ ] AMA configured
+- [ ] DCR configured
+- [ ] Syslog tested
+- [ ] CEF tested
+- [ ] FortiGate integration completed
+- [ ] Threat hunting query created
+- [ ] Automation/playbook tested
+- [ ] Cost monitored
+- [ ] Lab resources cleaned up
+
+**Final SOC principle:**
+
+> **Don't just learn where to click in Sentinel. Understand the complete journey of a security event: Source → Collection → Ingestion → Storage → Query → Detection → Alert → Incident → Investigation → Response.**
